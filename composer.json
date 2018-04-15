@@ -1,5 +1,5 @@
 {
-    "name": "THSCZ/query-signer",
+    "name": "thscz/query-signer",
     "description": "Creates control hash for specified $_GET params and validate them",
     "type": "library",
     "keywords": [
