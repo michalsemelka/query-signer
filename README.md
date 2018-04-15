@@ -5,6 +5,10 @@ PHP OOP, Composer and PHPUnit.
 
 ## Usage
 
+```
+composer require thscz/query-signer
+```
+
 Base methods of BaseQuerySigner/GETQuerySigner:
  *  create(...params)           ->  setter of values that should be signed with hash,
  *  sign(...params)             –>  sign values specified in create() and returns hash,
@@ -26,7 +30,7 @@ $signer = new \THSCZ\QuerySigner\GETQuerySigner();
 
 // create() accepts as first parameter array of values that should be signed. 
 // sign() has optional parameter $salt - if omitted, class will use internal @see options.
-echo '<a href="/order.php?id=45623&hash='.$signer->create([45623])->sign().'">Order detail</a>'
+echo '<a href="/order.php?id=45623&hash='.$signer->create([45623])->sign().'">Order detail</a>';
 ```
 
 ### Validate
