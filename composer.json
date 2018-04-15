@@ -9,6 +9,7 @@
       "url",
       "validate"
     ],
+    "minimum-stability": "stable",
     "require": {
       "php": "^5.6 || ^7.0"
     },
