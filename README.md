@@ -1,4 +1,4 @@
-# Creates control hash for specified $_GET params and validate them
+# Creates control hash from values and validate them
 
 This tool was created as part of my learning and playing with 
 PHP OOP, Composer and PHPUnit.
@@ -9,95 +9,84 @@ PHP OOP, Composer and PHPUnit.
 composer require thscz/query-signer
 ```
 
-Base methods of BaseQuerySigner/GETQuerySigner:
- *  create(...params)           ->  setter of values that should be signed with hash,
- *  sign(...params)             –>  sign values specified in create() and returns hash,
- *  createValidate(...params)   ->  setter of values that should validate,
- *  validate(...params)         ->  validate obtained hash with hash created from values setted by createValidate().
-
-For params definitions please see examples next.
-
 ### Sign
 
 e.g.: file orders.php - User wants to sign "id" value (45623).
 
 
 ```php
+require_once 'vendor/autoload.php';
+
 // ...
-// <a href="/order.php?id=45623">Order detail</a>
+// <a href="/order/45623">Order detail</a>
 
-$signer = new \THSCZ\QuerySigner\GETQuerySigner();
+$querySigner = new \THSCZ\QuerySigner\QuerySigner('supersecrtet');
+$hash = $querySigner->sign([45623]);
 
-// create() accepts as first parameter array of values that should be signed. 
-// sign() has optional parameter $salt - if omitted, class will use internal @see options.
-echo '<a href="/order.php?id=45623&hash='.$signer->create([45623])->sign().'">Order detail</a>';
+echo '<a href="/order/45623/&hash='. $hash .'">Order detail</a>';
 ```
-
 ### Validate
 
 On validation page:
 ```php
-// /order.php?id=45623&hash=xxxx
+// /order/45623/&hash=xxx
+require_once 'vendor/autoload.php';
 
 $hash = filter_input(INPUT_GET, 'hash');
+$orderId = filter_input(INPUT_GET, 'orderId');
 
-$signer = new \THSCZ\QuerySigner\GETQuerySigner();
-// createValidate() accepts as first parameter query string. Has two optional params, see next example. 
-// validate() has parameter $hash and optional parameter $salt.
-if ($signer->createValidate($_SERVER['QUERY_STRING'])->validate($hash)) {
+$querySigner = new \THSCZ\QuerySigner\QuerySigner('supersecrtet');
+
+if ($querySigner->validate([$orderId]) {
     // approved
 } else {
-    // access denied
+    // denied
 }
 ```
 
-### Specifying which params to validate
-Method createValidate accepts as first parameter the whole $_SERVER['QUERY_STRING']. But what if user wants to
-sign and validate only one param but url includes more? There is ...app, ehm option for that :).
-
-On sign page, user signs only the params that he wants.
+### Usage with expiration store
+You can create hash with TTL (time to live) in seconds. For this option you have to use Expiration Store thats implements ExpirationStoreInterface and stores information about which hash has which expiration.
 
 ```php
+interface ExpirationStoreInterface {
+
+	/**
+	 * @param $hash string created by QuerySigner
+	 * @param $timestamp integer UNIX timestamp value when hash expires
+	 * @throws ExpirationStoreException
+	 */
+	public function set(string $hash, int $timestamp): void;
+
+	/**
+	 * @return integer|null UNIX timestamp value when hash expires
+	 * @throws ExpirationStoreException
+	 */
+	public function get(string $hash): ?int;
+
+	/**
+	 * Deletes expiration information for hash
+	 * @param $hash string created by QuerySigner
+	 * @throws ExpirationStoreException
+	 */
+	public function revoke(string $hash): void;
+
+}
+ ```
+This package comes with very simple FileExpirationStore that stores information expiration value on file system. Expiration store is second
+parameter of QuerySigner class.
+
+```php
+require_once 'vendor/autoload.php';
+
 // ...
-// <a href="/order.php?id=424647&param=dt42">Order detail</a>
+// <a href="/order/45623">Order detail</a>
 
-$signer = new \THSCZ\QuerySigner\GETQuerySigner();
+$querySigner = new \THSCZ\QuerySigner\QuerySigner('supersecrtet', new \THSCZ\QuerySigner\Store\FileExpirationStore(__DIR__ . '/var/signs'));
+// hash is now valid for current UNIX timestamp + 60 seconds
+$hash = $querySigner->sign([45623], 60);
 
-// sign only "id" value
-$signer->create([424647])->sign();
+echo '<a href="/order/45623/&hash='. $hash .'">Order detail</a>';
 ```
-
-On validation page, user specifies params that should be validated.
-```php
-// /order.php?id=424647&&param=dt42&hash=xxxx
-// <a href="/order.php?id=424647&param=dt42">Order detail</a>
-
-$signer = new \THSCZ\QuerySigner\GETQuerySigner();
-
-// user specifies to only load "id" value from the query string
-// with flag as second parameter and array of names as third parameter.
-$signer->createValidate($_SERVER['QUERY_STRING'], 
-    $signer::SIGNER_HELPER_BUILD_SPECIFIC_QUERY, 
-    ['id']);
-
-if ($signer->validate()) {
-    //...
-}
-```
-
-### Options
-In Options/Base.php user can defines salt and name of session where are stored information for query-signer.
-
-```php
-const SIGNER_SALT = 'prettyflyforsalting';
-
-const SIGNER_SESSION_NAME = 'querysigner';
-```
-
-## To-Do
-* Write more tests :-)
-* Store hash in session
-
 ```
 Idea for this little tool came to my mind when I was working on some 
 3rd party exotic system, that was unable to validate that item belonged
